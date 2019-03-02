@@ -2,3 +2,5 @@
 .DS_Store
 
 pi_cam/__pycache__/*
+
+env/*

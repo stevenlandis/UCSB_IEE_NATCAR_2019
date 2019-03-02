@@ -14,7 +14,7 @@ def plotPixelHist(imgPath):
 
 threshold = 107
 
-img = Image.open('test.png')
+img = Image.open('cross2.png')
 img = ImageOps.grayscale(img)
 
 # threshold
@@ -114,4 +114,5 @@ draw = ImageDraw.Draw(img)
 points = fillSearch(data, getFirstPos(data))
 draw.line(points, fill=128)
 
-img.show()
+plt.imshow(img)
+plt.show()
