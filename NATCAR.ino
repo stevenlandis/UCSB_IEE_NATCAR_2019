@@ -1,58 +1,16 @@
 #include <SPI.h>
 #include <avr/pgmspace.h>
 #include <math.h>
-
-// Registers
-#define REG_Product_ID                           0x00
-#define REG_Revision_ID                          0x01
-#define REG_Motion                               0x02
-#define REG_Delta_X_L                            0x03
-#define REG_Delta_X_H                            0x04
-#define REG_Delta_Y_L                            0x05
-#define REG_Delta_Y_H                            0x06
-#define REG_SQUAL                                0x07
-#define REG_Pixel_Sum                            0x08
-#define REG_Maximum_Pixel                        0x09
-#define REG_Minimum_Pixel                        0x0a
-#define REG_Shutter_Lower                        0x0b
-#define REG_Shutter_Upper                        0x0c
-#define REG_Frame_Period_Lower                   0x0d
-#define REG_Frame_Period_Upper                   0x0e
-#define REG_Configuration_I                      0x0f
-#define REG_Configuration_II                     0x10
-#define REG_Frame_Capture                        0x12
-#define REG_SROM_Enable                          0x13
-#define REG_Run_Downshift                        0x14
-#define REG_Rest1_Rate                           0x15
-#define REG_Rest1_Downshift                      0x16
-#define REG_Rest2_Rate                           0x17
-#define REG_Rest2_Downshift                      0x18
-#define REG_Rest3_Rate                           0x19
-#define REG_Frame_Period_Max_Bound_Lower         0x1a
-#define REG_Frame_Period_Max_Bound_Upper         0x1b
-#define REG_Frame_Period_Min_Bound_Lower         0x1c
-#define REG_Frame_Period_Min_Bound_Upper         0x1d
-#define REG_Shutter_Max_Bound_Lower              0x1e
-#define REG_Shutter_Max_Bound_Upper              0x1f
-#define REG_LASER_CTRL0                          0x20
-#define REG_Observation                          0x24
-#define REG_Data_Out_Lower                       0x25
-#define REG_Data_Out_Upper                       0x26
-#define REG_SROM_ID                              0x2a
-#define REG_Lift_Detection_Thr                   0x2e
-#define REG_Configuration_V                      0x2f
-#define REG_Configuration_IV                     0x39
-#define REG_Power_Up_Reset                       0x3a
-#define REG_Shutdown                             0x3b
-#define REG_Inverse_Product_ID                   0x3f
-#define REG_Motion_Burst                         0x50
-#define REG_SROM_Load_Burst                      0x62
-#define REG_Pixel_Burst                          0x64
+#include "adns9800_registers.h"
+#include "RingBuffer.h"
 
 byte initComplete=0;
 byte testctr=0;
+
 unsigned long currTime;
+unsigned long prevTime = 0;
 unsigned long timer;
+
 volatile int xydat[2], xydatprev[2];
 volatile byte movementflag=0;
 
@@ -61,18 +19,22 @@ const int mosi = 11; //pin for mosi
 const int miso = 12; //pin for miso
 const int sck = 13; //pin for sck
 const int mot = 2; //pin for mot
+const int PWM = 9;  //  pin for PWM
 
 byte resolution  = 0x09;
 double totalDistance = 0;
 unsigned long timeInterval = 0;
+
 extern const unsigned short firmware_length;
 extern const unsigned char firmware_data[];
 
-int PWM = 9;  //  pin for PWM
-int interruptPin = 10, wantedVelocity;
-double err, err_last, Kp, Ki, Kd, voltage, integral;
+double wantedVelocity;
+double err,err_last, Kp, Ki, Kd, voltage, integral;
+
 float maxV = 5.0;
 float scale = 255/maxV;
+double maxcarspeed = 25.0; //km/hour (found online)
+double factor = 255/(maxcarspeed*(1/3600.0)*pow(10, 5));
 
 void setup() {
   Serial.begin(9600);
@@ -81,77 +43,82 @@ void setup() {
   pinMode(mosi, OUTPUT);
   pinMode(miso, INPUT);
   pinMode(sck, OUTPUT);
-
+  pinMode(23,OUTPUT);
+  pinMode(20,INPUT);
   digitalWrite(sck,HIGH);
   digitalWrite(mosi,LOW);
   digitalWrite(ncs,HIGH);
-  
+
+  pinMode(PWM, OUTPUT);
+  analogWrite(PWM,100);
   attachInterrupt(mot, UpdatePointer, FALLING);
-  Serial.println("here");
-  performStartup();  
+  
+  performStartup(); 
+   
   delay(100);
   initComplete=9;
   adns_write_reg(0x02,0);
-  adns_write_reg(REG_Configuration_I,resolution); //sets resolution to 1800 counts per inch
+  adns_write_reg(REG_Configuration_I,resolution); //sets resolution to 7200 counts per inch
 
   err = err_last = integral = 0;
   wantedVelocity = 0;
-  Kp = Ki = Kd = 1;           // SHOULD BE TESTED
-  pinMode(PWM, OUTPUT);
-  Serial1.begin(38400);
+  Kp = 0.5;
+  Kd = 0.5;
+  Ki = 0;// SHOULD BE TESTED
+ //Serial1.begin(38400);
+ 
 }
 
-void loop() {
-/*Prints out the distance traveled in the x and y planes  
-  if(movementflag){
-    Serial.print("x = ");
-    Serial.print( convTwosComp(xydat[0]) );
-    Serial.print(" | ");
-    Serial.print("y = ");
-    Serial.println( convTwosComp(xydat[1]) );
-
-    movementflag=0;
-    }
-  else if(!digitalRead(mot)){
-    UpdatePointer();
-  }
-*/
-
- if(movementflag){
-  timeInterval = micros() - timeInterval;
-//  Serial.println("Current data: ");
-//  Serial.print("X: ");
-//  Serial.println(convTwosComp(xydat[0]));
-//  Serial.print("Y: ");
-//  Serial.println(convTwosComp(xydat[1]));
-  Serial.print("Distance: ");
-  totalDistance = totalDistance + distancex(convTwosComp(xydat[0])) + distancey(convTwosComp(xydat[1]));
-  Serial.println(totalDistance);
-//  Serial.println(digitalRead(mot),BIN);
-//  Serial.print("X-velocity: ");
-//  Serial.println(velocityx(distancex(convTwosComp(xydat[0])), timeInterval));
-//  Serial.print("Y-velocity: ");
-//  Serial.println(velocityy(distancey(convTwosComp(xydat[1])), timeInterval));
-  double xvelocity = velocityx(distancex(convTwosComp(xydat[0])), timeInterval);
-  double yvelocity = velocityy(distancey(convTwosComp(xydat[1])), timeInterval);
-  double velocity = sqrt(pow(xvelocity,2) + pow(yvelocity,2));
-  if(Serial1.available() > 0){
-    wantedVelocity = Serial.read() * scale;
-  }
-  analogWrite(PIDcontrol(velocity, wantedVelocity), PWM);
-  movementflag = 0;
- }
- else if(!digitalRead(mot)){
-  UpdatePointer();
- }
+  double pid = 0;
+void loop(){
+  analogWrite(23, (int)pid);
+  pid = PIDcontrol(analogRead(20)*255/1023, 200);
+  Serial.println(pid);
 }
 
-double PIDcontrol(double currV, int actualV){
+//
+//void loop() {
+// if(movementflag){
+//  currTime= micros();
+//  timeInterval = currTime - prevTime;
+//  prevTime = currTime;
+//  
+//  //totalDistance = totalDistance + distancex(convTwosComp(xydat[0]));
+//  double xdelt = distancex(convTwosComp(xydat[0]));
+//  double ydelt = distancey(convTwosComp(xydat[1]));
+//  
+// 
+//  double xvelocity = velocityx(xdelt, timeInterval);
+//  double yvelocity = velocityy(ydelt, timeInterval);
+//  double velocity = sqrt(pow(xvelocity,2) + pow(yvelocity,2));
+//  Serial.println(velocity,4);
+//  //Serial.print("PWM: ");
+//  //Serial.println(velocity,4);
+//  /*if(Serial1.available() > 0){
+//    wantedVelocity = Serial.read() * scale;
+//    wantedVelocity = 1.2;
+//    analogWrite(PIDcontrol(velocity, wantedVelocity), PWM);
+//  }*/
+//  
+//  wantedVelocity = 10;
+//  //analogWrite(PWM,PIDcontrol(velocity,wantedVelocity));
+//  //Serial.println(PIDcontrol(velocity,wantedVelocity),5);
+//  
+//  movementflag = 0;
+//  /*Serial.print("Mot: ");
+//  Serial.println(digitalRead(mot));*/
+// }
+// else if(!digitalRead(mot)){
+//  UpdatePointer();  
+// }
+//}
+
+double PIDcontrol(double currV, double actualV){
   err = currV - actualV;
   integral += err;
   double delta_err = err - err_last;
   err_last = err; 
-  return actualV * (Kp * err + Ki * integral + Kd * delta_err);
+  return actualV *(Kp * err + Ki * integral + Kd * delta_err);
 }
 
 void adns_com_begin(){ //communication start
@@ -292,12 +259,11 @@ void UpdatePointer(void){
     }
   }
 
-
 int convTwosComp(int b){
   //Convert from 2's complement
   if(b & 0x80){
     b = -1 * ((b ^ 0xff) + 1);
     }
   return b;
-  }
+}
   

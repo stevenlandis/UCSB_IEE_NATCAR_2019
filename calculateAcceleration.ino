@@ -1,5 +1,6 @@
+
 const int resolution1 = 1800;
-const int microtoseconds = 1 * pow(10,-6);
+const double microtoseconds = 1 * pow(10,-6);
 
 double distancex(double x){ //inches
   return (x/resolution1);
@@ -10,11 +11,11 @@ double distancey(double y){
 }
 
 double velocityx(double distancex, long timeInterval){ //meter/sec
-  return distancex/(timeInterval * microtoseconds);
+  return (distancex*2.54)/(timeInterval * microtoseconds);
 }
 
 double velocityy(double distancey, long timeInterval){
-  return distancey/(timeInterval * microtoseconds); 
+  return (distancey*2.54)/(timeInterval * microtoseconds); 
 }
 
 double accelerationx(double velocityax, double velocitybx, long timeInterval){ //meter/sec^2
