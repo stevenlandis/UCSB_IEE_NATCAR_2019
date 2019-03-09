@@ -2,25 +2,109 @@ from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 import tkinter as tk
 
+REAL_POINTS = [-5,9,-5,20,5,20,5,9]
+
+# homography constants
+H = [0.07746203773260954, 0.0026592742006694894, -20.79510858690768, -5.857577974861805e-05, -0.03356021614233259, 33.599693587262415, -0.00062404541481389, 0.0048092072848485955]
+
+def transform(p):
+    x,y = p
+
+    return (
+        (H[0]*x+H[1]*y+H[2])/(H[6]*x+H[7]*y+1),
+        (H[3]*x+H[4]*y+H[5])/(H[6]*x+H[7]*y+1))
+
 img = Image.open('homography.jpg')
 
-class App:
-	def __init__(self, master):
+class GetPoints:
+    def __init__(self, root):
 
-		self.img = ImageTk.PhotoImage(Image.open('homography.jpg').resize((500, 500), Image.ANTIALIAS))
+        self.img = ImageTk.PhotoImage(Image.open('homography.jpg').resize((500, 500), Image.ANTIALIAS))
 
-		self.master = master;
-		master.title('Homography Calibration')
+        self.root = root;
+        root.title('Homography Calibration')
 
-		self.label = tk.Label(master, text='Pick the 4 calibration points')
-		self.label.pack()
+        self.label = tk.Label(root, text='Click 4 calibration points')
+        self.label.pack()
 
-		self.button = tk.Button(master, text='Test button')
-		self.button.pack()
+        self.panel = tk.Label(root, image=self.img)
+        self.panel.bind('<Button-1>', self.onPanelClick)
+        self.panel.pack()
 
-		self.panel = tk.Label(master, image=self.img)
-		self.panel.pack()
+        self.points = []
 
-root = tk.Tk()
-app = App(root)
-root.mainloop()
+    def run(self):
+        # let the window run until 4 points are chosen
+        self.root.mainloop()
+
+        # process the points
+        self.points.sort(key=lambda a: a[0])
+
+        return self.points
+
+    def onPanelClick(self, evt):
+        x = evt.x
+        y = evt.y
+        print('clicked at {},{}'.format(x,y))
+        self.points.append((x,y))
+        if len(self.points) == 4:
+            # sort the points by x because the closer points are wider and the farther points are narrower
+            self.root.destroy()
+
+def ToReducedRowEchelonForm(M):
+    #print("Got to reducing matrix")
+    if not M: return
+    lead = 0
+    rowCount = len(M)
+    columnCount = len(M[0])
+    for r in range(rowCount):
+        if lead >= columnCount:
+            return
+        i = r
+        while M[i][lead] == 0:
+            i += 1
+            if i == rowCount:
+                i = r
+                lead += 1
+                if columnCount == lead:
+                    return
+        M[i],M[r] = M[r],M[i]
+        lv = M[r][lead]
+        M[r] = [ mrx / float(lv) for mrx in M[r]]
+        for i in range(rowCount):
+            if i != r:
+                lv = M[i][lead]
+                M[i] = [ iv - lv*rv for rv,iv in zip(M[r],M[i])]
+        lead += 1
+
+def solveHomography(pts):
+    pts = list(sum(pts, ()))
+    x1,y1,x2,y2,x3,y3,x4,y4 = pts
+    X1,Y1,X2,Y2,X3,Y3,X4,Y4 = REAL_POINTS
+
+    Ab = [
+        [x1, y1, 1, 0, 0, 0, -x1*X1, -y1*X1,X1],
+        [x2, y2, 1, 0, 0, 0, -x2*X2, -y2*X2,X2],
+        [x3, y3, 1, 0, 0, 0, -x3*X3, -y3*X3,X3],
+        [x4, y4, 1, 0, 0, 0, -x4*X4, -y4*X4,X4],
+        [0, 0, 0, x1, y1, 1, -x1*Y1, -y1*Y1,Y1],
+        [0, 0, 0, x2, y2, 1, -x2*Y2, -y2*Y2,Y2],
+        [0, 0, 0, x3, y3, 1, -x3*Y3, -y3*Y3,Y3],
+        [0, 0, 0, x4, y4, 1, -x4*Y4, -y4*Y4,Y4]]
+
+    ToReducedRowEchelonForm(Ab)
+
+    s = [x[8] for x in Ab]
+    print(s)
+
+def main():
+    # get 4 points
+    root = tk.Tk()
+    points = GetPoints(root).run()
+    print(points)
+    if len(points) != 4:
+        return
+    # solveHomography(points)
+    print([transform(p) for p in points])
+
+main()
