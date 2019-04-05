@@ -3,6 +3,7 @@ import numpy as np
 from ScannerRect import ScannerRect
 import math
 import matplotlib.pyplot as plt
+import points as pnt
 
 def plotPixelHist(imgPath):
     img = Image.open(imgPath)
@@ -108,6 +109,12 @@ def fillSearch(data, p0):
         stack = nextStack
     return points
 
+def dispPoints(pnts):
+    pnts = np.array(pnts)
+    plt.scatter(pnts[:,0],pnts[:,1])
+    plt.axes().set_aspect('equal')
+    plt.show()
+
 # draw some lines
 draw = ImageDraw.Draw(img)
 
@@ -116,3 +123,10 @@ draw.line(points, fill=128)
 
 plt.imshow(img)
 plt.show()
+
+points = pnt.transformPoints(points)
+dispPoints(points)
+
+points = pnt.filterPoints(points, 2*2)
+dispPoints(points)
+

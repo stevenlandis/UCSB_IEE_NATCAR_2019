@@ -7,9 +7,18 @@ REAL_POINTS = [-5,9,-5,20,5,20,5,9]
 # homography constants
 H = [0.07746203773260954, 0.0026592742006694894, -20.79510858690768, -5.857577974861805e-05, -0.03356021614233259, 33.599693587262415, -0.00062404541481389, 0.0048092072848485955]
 
+def main():
+    # get 4 points
+    root = tk.Tk()
+    points = GetPoints(root).run()
+    # print(points)
+    if len(points) != 4:
+        return
+    solveHomography(points)
+    # print([transform(p) for p in points])
+
 def transform(p):
     x,y = p
-
     return (
         (H[0]*x+H[1]*y+H[2])/(H[6]*x+H[7]*y+1),
         (H[3]*x+H[4]*y+H[5])/(H[6]*x+H[7]*y+1))
@@ -17,9 +26,14 @@ def transform(p):
 img = Image.open('homography.jpg')
 
 class GetPoints:
-    def __init__(self, root):
+    def __init__(self, root, targetWidth=112, targetHeight=112):
+        self.viewW = 500
+        self.viewH = 500
+        self.img = ImageTk.PhotoImage(
+            Image.open('homography.jpg').resize((self.viewW, self.viewH), Image.ANTIALIAS))
 
-        self.img = ImageTk.PhotoImage(Image.open('homography.jpg').resize((500, 500), Image.ANTIALIAS))
+        self.w = targetWidth
+        self.h = targetHeight
 
         self.root = root;
         root.title('Homography Calibration')
@@ -43,8 +57,8 @@ class GetPoints:
         return self.points
 
     def onPanelClick(self, evt):
-        x = evt.x
-        y = evt.y
+        x = evt.x / self.viewW * self.w
+        y = evt.y / self.viewH * self.h
         print('clicked at {},{}'.format(x,y))
         self.points.append((x,y))
         if len(self.points) == 4:
@@ -95,16 +109,7 @@ def solveHomography(pts):
     ToReducedRowEchelonForm(Ab)
 
     s = [x[8] for x in Ab]
+    print('Homography Constants:')
     print(s)
-
-def main():
-    # get 4 points
-    root = tk.Tk()
-    points = GetPoints(root).run()
-    print(points)
-    if len(points) != 4:
-        return
-    # solveHomography(points)
-    print([transform(p) for p in points])
 
 main()
