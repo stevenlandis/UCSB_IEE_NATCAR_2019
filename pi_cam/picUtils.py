@@ -15,7 +15,7 @@ def plotPixelHist(imgPath):
 
 threshold = 107
 
-img = Image.open('cross2.png')
+img = Image.open('zigzag.png')
 img = ImageOps.grayscale(img)
 
 # threshold
@@ -92,10 +92,10 @@ def fillSearch(data, p0):
             if dist > 100:
                 dists.append((i, dist))
         if len(dists) == 2:
-            # print(dists)
+            print(dists)
             stack = stack[dists[0][0]+1 : dists[1][0]+1]
-            # plt.imshow(data)
-            # plt.show()
+            plt.imshow(data)
+            plt.show()
 
         nextStack = []
         while len(stack):
@@ -125,8 +125,10 @@ plt.imshow(img)
 plt.show()
 
 points = pnt.transformPoints(points)
-dispPoints(points)
+# dispPoints(points)
 
 points = pnt.filterPoints(points, 2*2)
-dispPoints(points)
+# dispPoints(points)
 
+pnt.smoothPoints(points, math.pi/2, 10)
+dispPoints(points)
