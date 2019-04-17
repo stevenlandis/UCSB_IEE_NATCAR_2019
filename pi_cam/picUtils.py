@@ -5,6 +5,48 @@ import math
 import matplotlib.pyplot as plt
 import points as pnt
 
+def main():
+    threshold = 107
+
+    img = Image.open('zigzag.png')
+    img = ImageOps.grayscale(img)
+
+    # threshold
+    img = img.point(lambda p: p > threshold and 255)
+
+    # get the pixel data
+    data = np.array(img)
+
+    print('img: {}, {}, data: {}'.format(
+        img.width,img.height,data.shape))
+
+    xSum = 0
+    xCount = 0
+    for x in range(0,img.width,1):
+        for y in range(0,img.height,1):
+            if data[y][x]:
+                xSum += x
+                xCount += 1
+    print(2*xSum/xCount/img.width-1)
+
+    # draw some lines
+    draw = ImageDraw.Draw(img)
+
+    points = fillSearch(data, getFirstPos(data))
+    draw.line(points, fill=128)
+
+    plt.imshow(img)
+    plt.show()
+
+    points = pnt.transformPoints(points)
+    # dispPoints(points)
+
+    points = pnt.filterPoints(points, 2*2)
+    # dispPoints(points)
+
+    pnt.smoothPoints(points, math.pi/2, 10)
+    dispPoints(points)
+
 def plotPixelHist(imgPath):
     img = Image.open(imgPath)
     img = ImageOps.grayscale(img)
@@ -13,52 +55,44 @@ def plotPixelHist(imgPath):
     plt.title('Intensity plot for "{}"'.format(imgPath))
     plt.show()
 
-threshold = 107
+def imgFilter(img, threshold):
+    img = ImageOps.grayscale(img)
+    return img.point(lambda p: p > threshold and 255)
 
-img = Image.open('zigzag.png')
-img = ImageOps.grayscale(img)
+def getImgArray(img):
+    return np.array(img)
 
-# threshold
-img = img.point(lambda p: p > threshold and 255)
-
-# get the pixel data
-data = np.array(img)
-
-xSum = 0
-xCount = 0
-for x in range(0,img.width,1):
-    for y in range(0,img.height,1):
-        if data[y][x]:
-            xSum += x
-            xCount += 1
-print(2*xSum/xCount/img.width-1)
-
-# plt.imshow(data)
-# plt.show()
-# img.show()
+def getApproxTurn(data):
+    xSum = 0
+    xCount = 0
+    for x in range(0,data.shape[1],1):
+        for y in range(0,data.shape[0],1):
+            if data[y][x]:
+                xSum += x
+                xCount += 1
+    # get expected x and scale to be within [-1, 1]
+    return 2*xSum/xCount/data.shape[1]-1
 
 # get the lowest point
-def bottomPoints():
-    halfWidth = img.width//2
+def bottomPoints(data):
+    halfWidth = data.shape[1]//2
 
     # scan botton
     for i in range(halfWidth):
-        yield (halfWidth - i - 1, img.height-1)
-        yield (halfWidth + i, img.height-1)
+        yield (halfWidth - i - 1, data.shape[0]-1)
+        yield (halfWidth + i, data.shape[0]-1)
 
     # scan sides
-    for i in range(img.height//2):
-        yield (0, img.height-1-i)
-        yield (img.width-1, img.height-1-i)
+    for i in range(data.shape[0]//2):
+        yield (0, data.shape[0]-1-i)
+        yield (data.shape[1]-1, data.shape[0]-1-i)
 
 def getFirstPos(data):
-    for p in bottomPoints():
+    for p in bottomPoints(data):
         if data[p[1]][p[0]]:
             # print(x)
             return p
     return None
-
-# x = getFirstPos(data)
 
 def around(x, y, w, h):
     if x > 0:
@@ -115,20 +149,8 @@ def dispPoints(pnts):
     plt.axes().set_aspect('equal')
     plt.show()
 
-# draw some lines
-draw = ImageDraw.Draw(img)
+def imgShow(img):
+    plt.imshow(img)
+    plt.show()
 
-points = fillSearch(data, getFirstPos(data))
-draw.line(points, fill=128)
-
-plt.imshow(img)
-plt.show()
-
-points = pnt.transformPoints(points)
-# dispPoints(points)
-
-points = pnt.filterPoints(points, 2*2)
-# dispPoints(points)
-
-pnt.smoothPoints(points, math.pi/2, 10)
-dispPoints(points)
+# main()

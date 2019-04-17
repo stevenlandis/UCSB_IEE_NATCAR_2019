@@ -4,3 +4,4 @@
 pi_cam/__pycache__/*
 
 env/*
+*.pyc

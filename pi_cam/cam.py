@@ -3,14 +3,17 @@ from time import sleep, time
 import io
 from PIL import Image
 import numpy as np
+from picUtils import imgFilter, getImgArray, fillSearch, getFirstPos, imgShow
 
-width = 112
-height = 112
+# width = 112
+# height = 112
+width = 1920
+height = 1088
 
 camera = PiCamera()
 
 # set cameral settings
-camera.resolution = (width,height)
+camera.resolution = (width, height)
 camera.framerate = 80
 
 # allow two seconds for camera sensors to adjust
@@ -20,7 +23,7 @@ print('Camera adjusted')
 # set up 40 memory streams
 def outputs():
     stream = io.BytesIO()
-    for i in range(40):
+    for i in range(1):
         yield stream
 
         print('took picture {}'.format(i))
@@ -34,6 +37,10 @@ def outputs():
             imgArr = imgArr.reshape(width, height, 3)
 
         img = Image.fromarray(imgArr, 'RGB')
+        imgShow(img)
+        img = imgFilter(img, 107)
+        data = getImgArray(img)
+        points = fillSearch(data, getFirstPos(data))
 
         # img.save('img.jpg', 'JPEG')
 
