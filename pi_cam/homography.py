@@ -23,14 +23,14 @@ def transform(p):
         (H[0]*x+H[1]*y+H[2])/(H[6]*x+H[7]*y+1),
         (H[3]*x+H[4]*y+H[5])/(H[6]*x+H[7]*y+1))
 
-img = Image.open('homography.jpg')
+# img = Image.open('homography.png')
 
 class GetPoints:
     def __init__(self, root, targetWidth=112, targetHeight=112):
         self.viewW = 500
         self.viewH = 500
         self.img = ImageTk.PhotoImage(
-            Image.open('homography.jpg').resize((self.viewW, self.viewH), Image.ANTIALIAS))
+            Image.open('homography.png').resize((self.viewW, self.viewH), Image.ANTIALIAS))
 
         self.w = targetWidth
         self.h = targetHeight

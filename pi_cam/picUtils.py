@@ -47,6 +47,12 @@ def main():
     pnt.smoothPoints(points, math.pi/2, 10)
     dispPoints(points)
 
+def getRealPoints(pnts):
+    pnts = pnt.transformPoints(pnts)
+    pnts = pnt.filterPoints(pnts, 2*2)
+    pnt.smoothPoints(pnts, math.pi/2, 10)
+    return pnts
+
 def plotPixelHist(imgPath):
     img = Image.open(imgPath)
     img = ImageOps.grayscale(img)
@@ -94,6 +100,39 @@ def getFirstPos(data):
             return p
     return None
 
+# detect if end of path in picture
+def isEnd(data):
+    width = data.shape[1]
+    height = data.shape[0]
+    state = 0
+    dists = []
+    for x in range(width):
+        if state == 0:
+            # no positive pixel found
+            if data[height-1][x]:
+                state = 1
+                dists.append(0)
+        elif state == 1:
+            # last pixel was 1
+            dists[-1] += 1
+            if not data[height-1][x]:
+                state = 2
+                dists.append(0)
+        elif state == 2:
+            # last pixel was 0
+            dists[-1] += 1
+            if data[height-1][x]:
+                state = 1
+                dists.append(0)
+    if state == 2:
+        # remove empty from dist list
+        dists.pop()
+    res = len([d for d in dists if d >= 6]) == 5
+    # if res:
+    #     print(dists)
+    #     # imgShow(data)
+    return res
+
 def around(x, y, w, h):
     if x > 0:
         yield (x-1, y)
@@ -105,6 +144,8 @@ def around(x, y, w, h):
         yield (x, y+1)
 
 def fillSearch(data, p0):
+    if p0 == None:
+        return None
     points = []
     stack = [p0]
     data[p0[1]][p0[0]] = 0
@@ -126,10 +167,10 @@ def fillSearch(data, p0):
             if dist > 100:
                 dists.append((i, dist))
         if len(dists) == 2:
-            print(dists)
+            # print(dists)
             stack = stack[dists[0][0]+1 : dists[1][0]+1]
-            plt.imshow(data)
-            plt.show()
+            # plt.imshow(data)
+            # plt.show()
 
         nextStack = []
         while len(stack):
@@ -150,6 +191,12 @@ def dispPoints(pnts):
     plt.show()
 
 def imgShow(img):
+    plt.imshow(img)
+    plt.show()
+
+def overlayPoints(img, pnts):
+    draw = ImageDraw.Draw(img)
+    draw.line(pnts, fill=128)
     plt.imshow(img)
     plt.show()
 
