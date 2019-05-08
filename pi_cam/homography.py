@@ -5,7 +5,7 @@ import tkinter as tk
 REAL_POINTS = [-5,9,-5,20,5,20,5,9]
 
 # homography constants
-H = [0.07746203773260954, 0.0026592742006694894, -20.79510858690768, -5.857577974861805e-05, -0.03356021614233259, 33.599693587262415, -0.00062404541481389, 0.0048092072848485955]
+# H = [0.07746203773260954, 0.0026592742006694894, -20.79510858690768, -5.857577974861805e-05, -0.03356021614233259, 33.599693587262415, -0.00062404541481389, 0.0048092072848485955]
 
 def main():
     # get 4 points
@@ -14,26 +14,28 @@ def main():
     # print(points)
     if len(points) != 4:
         return
-    solveHomography(points)
-    # print([transform(p) for p in points])
+    H = solveHomography(points)
+    print([transform(p) for p in points])
 
-def transform(p):
-    x,y = p
-    return (
-        (H[0]*x+H[1]*y+H[2])/(H[6]*x+H[7]*y+1),
-        (H[3]*x+H[4]*y+H[5])/(H[6]*x+H[7]*y+1))
+# def transform(p):
+#     x,y = p
+#     return (
+#         (H[0]*x+H[1]*y+H[2])/(H[6]*x+H[7]*y+1),
+#         (H[3]*x+H[4]*y+H[5])/(H[6]*x+H[7]*y+1))
 
 # img = Image.open('homography.png')
 
 class GetPoints:
-    def __init__(self, root, targetWidth=112, targetHeight=112):
+    def __init__(self):
+        root = tk.Tk()
+        img = Image.open('homography.png')
+        self.w, self.h = img.size
+
         self.viewW = 500
         self.viewH = 500
+
         self.img = ImageTk.PhotoImage(
             Image.open('homography.png').resize((self.viewW, self.viewH), Image.ANTIALIAS))
-
-        self.w = targetWidth
-        self.h = targetHeight
 
         self.root = root;
         root.title('Homography Calibration')
@@ -54,7 +56,7 @@ class GetPoints:
         # process the points
         self.points.sort(key=lambda a: a[0])
 
-        return self.points
+        return list(sum(self.points, ()))
 
     def onPanelClick(self, evt):
         x = evt.x / self.viewW * self.w
@@ -91,10 +93,9 @@ def ToReducedRowEchelonForm(M):
                 M[i] = [ iv - lv*rv for rv,iv in zip(M[r],M[i])]
         lead += 1
 
-def solveHomography(pts):
-    pts = list(sum(pts, ()))
-    x1,y1,x2,y2,x3,y3,x4,y4 = pts
-    X1,Y1,X2,Y2,X3,Y3,X4,Y4 = REAL_POINTS
+def solveHomography(imgPts, realPts):
+    x1,y1,x2,y2,x3,y3,x4,y4 = imgPts
+    X1,Y1,X2,Y2,X3,Y3,X4,Y4 = realPts
 
     Ab = [
         [x1, y1, 1, 0, 0, 0, -x1*X1, -y1*X1,X1],
@@ -108,8 +109,10 @@ def solveHomography(pts):
 
     ToReducedRowEchelonForm(Ab)
 
-    s = [x[8] for x in Ab]
+    return [x[8] for x in Ab]
     print('Homography Constants:')
     print(s)
+    with open('H.py', 'w') as f:
+        f.write('H = {}'.format(s))
 
-main()
+# main()

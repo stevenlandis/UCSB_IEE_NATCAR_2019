@@ -4,6 +4,7 @@ from ScannerRect import ScannerRect
 import math
 import matplotlib.pyplot as plt
 import points as pnt
+import servoControl
 
 def main():
     threshold = 107
@@ -47,6 +48,9 @@ def main():
     pnt.smoothPoints(points, math.pi/2, 10)
     dispPoints(points)
 
+    circles = pnt.getCircles(points, math.pi/2)
+    pnt.dispCircles(circles)
+
 def getRealPoints(pnts):
     pnts = pnt.transformPoints(pnts)
     pnts = pnt.filterPoints(pnts, 2*2)
@@ -77,7 +81,9 @@ def getApproxTurn(data):
                 xSum += x
                 xCount += 1
     # get expected x and scale to be within [-1, 1]
-    return 2*xSum/xCount/data.shape[1]-1
+    if xCount == 0:
+        return (None, 0)
+    return (2*xSum/xCount/data.shape[1]-1, xCount)
 
 # get the lowest point
 def bottomPoints(data):
@@ -189,6 +195,36 @@ def dispPoints(pnts):
     plt.scatter(pnts[:,0],pnts[:,1])
     plt.axes().set_aspect('equal')
     plt.show()
+
+def getTurn(pts, maxY):
+    i = 0
+    while i < len(pts):
+        if pts[i][1] > maxY:
+            break
+        i += 1
+    xSum = 0
+    ySum = 0
+    nAv = min(i,5)
+    if nAv == 0: return 0
+    for j in range(nAv):
+        xSum += pts[i-j-1][0]
+        ySum += pts[i-j-1][1]
+    ci = pnt.getCircleInfo((0,0),(xSum/nAv, ySum/nAv), math.pi/2)
+    return -servoControl.getTurn(ci.r)
+
+def getApproxPointTurn(pts, maxY):
+    if pts == None:
+        return (None, 0)
+    xSum = 0
+    nPts = 0
+    for p in pts:
+        if p[1] > maxY:
+            break
+        xSum += p[0] * p[1]
+        nPts += 1
+    if nPts == 0:
+        return (None, 0)
+    return (xSum/nPts, nPts)
 
 def imgShow(img):
     plt.imshow(img)

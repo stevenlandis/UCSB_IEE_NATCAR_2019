@@ -3,41 +3,22 @@ from time import sleep, time
 import io
 from PIL import Image
 import numpy as np
-from picUtils import imgFilter, getImgArray, fillSearch, getFirstPos, imgShow, dispPoints, overlayPoints, getRealPoints, isEnd, plotPixelHist
+# from picUtils import imgFilter, getImgArray, fillSearch, getFirstPos, imgShow, dispPoints, overlayPoints, getRealPoints, isEnd, plotPixelHist, getApproxTurn
+import picUtils
+import points as pnt
+import servoControl
+import motorControl
+import camSetup
+from threshold import threshold
+from Timer import Timer
 
 def main():
-    # width = 64
-    # height = 64
-    # width = 1920
-    # height = 1088
-    plotPixelHist('homography.png')
-    return
-    camera = PiCamera(sensor_mode=5, resolution=(112,80), framerate=30)
-    print('resoultion: {}, {}'.format(
-        camera.resolution.width,
-        camera.resolution.height))
-    print('sensor mode: {}'.format(
-        camera.sensor_mode))
-    print('framerate: {}'.format(
-        camera.framerate))
-    # return
+    camera = camSetup.init()
     width = camera.resolution.width
     height = camera.resolution.height
 
-    # # set camera settings
-    # camera.resolution = (width, height)
-    # camera.framerate = 80
-
-    # camera.start_preview()
-    # sleep(100)
-    # camera.stop_preview()
-    # return
-
-    # allow two seconds for camera sensors to adjust
-    sleep(2)
-    print('Camera adjusted')
-
-    nFrames = 40
+    servoControl.init()
+    motorControl.speed(80)
 
     # declare vars to store image
     img = None
@@ -46,18 +27,29 @@ def main():
     points = None
     rPoints = None
 
-    # set up 40 memory streams
     def outputs():
         stream = io.BytesIO()
-        # for i in range(nFrames):
         i = 0
+        lastTurn = 0
+        timer = Timer([
+            'got image array',
+            'got image from array',
+            'filtered image',
+            'got grayscale image array',
+            'got line points',
+            'transformed points',
+            'filtered points',
+            'got approximate turn',
+            'did turn'])
+        maxY = pnt.transform((25,0))[1] - 10
+        print('max Y: {}'.format(maxY))
+        # return
         while True:
+        # for i in range(40):
             yield stream
-
             # print('took picture {}'.format(i))
-
-            nonlocal img, greyImg, data, points, rPoints
-
+            # nonlocal img, greyImg, data, points, rPoints
+            timer.reset()
             # format pixels as array
             imgArr = []
             stream.seek(0)
@@ -65,60 +57,70 @@ def main():
                 # img = Image.frombytes('RGB', (width, height), stream)
                 imgArr = np.array(view)
                 imgArr = imgArr.reshape(height, width, 3)
-
+            timer.tick()
             img = Image.fromarray(imgArr, 'RGB')
-            greyImg = imgFilter(img, 200)
-            data = getImgArray(greyImg)
-            if isEnd(data):
+            timer.tick()
+            greyImg = picUtils.imgFilter(img, threshold)
+            stopData = picUtils.getImgArray(greyImg)
+            if picUtils.isEnd(stopData):
                 print('Is End {}'.format(i))
-            points = fillSearch(data, getFirstPos(data))
-            if points == None:
-                print('No Starting Point {}'.format(i))
-            i += 1
+                return
+            img = img.resize((50, 50), Image.ANTIALIAS)
+            greyImg = picUtils.imgFilter(img, threshold)
+            data = picUtils.getImgArray(greyImg)
+
+            points = picUtils.fillSearch(data, picUtils.getFirstPos(data))
+            timer.tick()
+            if points != None:
+                points = pnt.transformPoints(points)
+                timer.tick()
+                points = pnt.filterPoints(points, 4)
+                timer.tick()
+                # a, count = picUtils.getApproxPointTurn(points, maxY)
+                # timer.tick()
+                # if count > 2:
+                #     # convert average x to a turn value
+                #     a = 0.00937815*a - 0.123739
+                #     lastTurn = min(1, max(-1, a))
+                a = picUtils.getTurn(points, maxY)
+                # convert a
+                a = 0.444*(a-0.287)
+                lastTurn = min(1, max(-1, a))
+                # print(a)
+                # print('approx: {}, {}, {}'.format(a, count, lastTurn))
+            # else:
+            #     # print('No Points')
+            #     pass
+            # # print('last turn: {}'.format(lastTurn))
+            # print(lastTurn)
+            servoControl.turn(lastTurn)
+            timer.tick()
+            # print(timer)
+            # # points = fillSearch(data, getFirstPos(data))
+            # # if points == None:
+            # #     print('No Starting Point {}'.format(i))
+            # i += 1
+            # motorControl.speed(100)
             # rPoints = getRealPoints(points)
 
             # img.save('homography.png', 'PNG')
-
-            # for j in range(width*height//2):
-            #     if j % width == 0:
-            #         imgArr.append([])
-            #     r=int(stream.read(1)[0])
-            #     g=int(stream.read(2)[0])
-            #     b=int(stream.read(3)[0])
-            #     imgArr.append(r)
-            #     imgArr.append(g)
-            #     imgArr.append(b)
-            # # print(imgArr)
-            
-            # img = Image.fromarray(imgArr, 'RGB')        
-            # # save to file
-            # stream.seek(0)
-            # with open('img.rgb', 'wb') as out:
-            #     out.write(stream.read())
-
-            # stream.seek(0)
-            # try:
-            #     for j in range(width*height//2):
-            #         r=int(stream.read(1)[0])
-            #         g=int(stream.read(2)[0])
-            #         b=int(stream.read(3)[0])
-            #         # print(j,r,g,b)
-            # except:
-            #     print('Failed on {}'.format(j))
-
-            #print(stream.read(10))
 
             stream.seek(0)
             stream.truncate()
 
     print('starting captures')
     start = time()
-    camera.capture_sequence(outputs(), 'rgb', use_video_port=True)
+    try:
+        camera.capture_sequence(outputs(), 'rgb', use_video_port=True)
+    finally:
+        print('Closing Camera')
+        camera.close()
+        motorControl.speed(0)
     finish = time()
 
-    print('Captured {} images at {}fps'.format(
-        nFrames,
-        nFrames/(finish - start)))
+    # print('Captured {} images at {}fps'.format(
+    #     nFrames,
+    #     nFrames/(finish - start)))
     # imgShow(img)
     # imgShow(greyImg)
     # imgShow(data)

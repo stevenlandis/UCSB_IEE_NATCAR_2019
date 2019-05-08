@@ -1,5 +1,6 @@
 # Functions for smoothing points and getting arcs
 from math import sqrt, cos, sin, pi, atan2
+from H import H, H_inv # homography matrixes
 
 class CircleInfo:
     def __init__(self):
@@ -109,6 +110,21 @@ def nextPoints(pts, ang):
         # use direction at center for next line
         ang = ci.md
 
+def getCircles(pts, ang):
+    p0 = pts[0]
+    p1 = pts[1]
+    res = []
+    for i in range(len(pts)-1):
+        p0 = pts[i]
+        p1 = pts[i+1]
+        ci = getCircleInfo(p0,p1,ang)
+        res.append(ci)
+        ang = ci.df
+    return res
+
+def dispCircles(ci):
+    print(', '.join([str(c.r) for c in ci]))
+
 def smoothPoints(pnts, ang, n):
     for i in range(n):
         nextPoints(pnts,ang)
@@ -120,14 +136,28 @@ def getFirstRadius(pnts, ang):
     return ci.r
 
 # Homography transformation
-# H = [0.07746203773260954, 0.0026592742006694894, -20.79510858690768, -5.857577974861805e-05, -0.03356021614233259, 33.599693587262415, -0.00062404541481389, 0.0048092072848485955]
-H = [0.2730334100652474, 0.004184530244230229, -14.534808946974017, 0.0035888532288437247, -0.13211961345981194, 28.532222166534776, -0.0002572923129796449, 0.011562194262956961]
+# H = [
+#     0.3433119933772739,
+#     -0.00013262148356181502,
+#     -17.137219467110896,
+#     0.007918201968029948,
+#     -0.14752348892312117,
+#     36.585824759039916,
+#     0.0003959100984015085,
+#     0.015061359048216125]
 def transform(p):
     x,y = p
     scale = H[6]*x+H[7]*y+1
     return (
         (H[0]*x+H[1]*y+H[2])/scale,
         (H[3]*x+H[4]*y+H[5])/scale)
+
+def invTransform(p):
+    x,y = p
+    scale = H_inv[6]*x+H_inv[7]*y+1
+    return (
+        (H_inv[0]*x+H_inv[1]*y+H_inv[2])/scale,
+        (H_inv[3]*x+H_inv[4]*y+H_inv[5])/scale)
 
 def transformPoints(pts):
     return [transform(p) for p in pts]
