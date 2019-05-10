@@ -86,7 +86,7 @@ def getApproxTurn(data):
     return (2*xSum/xCount/data.shape[1]-1, xCount)
 
 # get the lowest point
-def bottomPoints(data):
+def bottomPoints(data,a):
     halfWidth = data.shape[1]//2
 
     # scan botton
@@ -99,8 +99,37 @@ def bottomPoints(data):
         yield (0, data.shape[0]-1-i)
         yield (data.shape[1]-1, data.shape[0]-1-i)
 
-def getFirstPos(data):
-    for p in bottomPoints(data):
+# get the lowest point
+def bottomPoints2(data,a):
+    a = (a+1)/2
+    width = data.shape[1]
+    height = data.shape[0]
+    startWidth = math.floor(width*a)
+    startWidth = min(startWidth, width-1)
+    startWidth = max(startWidth, 0)
+    halfWidth = width//2
+
+    # scan bottom
+    if startWidth < halfWidth:
+        for i in range(startWidth):
+            yield (startWidth - i - 1, height-1)
+            yield (startWidth + i, height-1)
+        for i in range(width - 2*startWidth):
+            yield (2*startWidth+i, height-1)
+    else:
+        for i in range(width - startWidth):
+            yield (startWidth - i - 1, height-1)
+            yield (startWidth + i, height-1)
+        for i in range(2*startWidth - width):
+            yield (2*startWidth - width - i - 1, height-1)
+    return
+    # scan sides
+    for i in range(height//2):
+        yield (0, height-1-i)
+        yield (width-1, height-1-i)
+
+def getFirstPos(data,a):
+    for p in bottomPoints(data,a):
         if data[p[1]][p[0]]:
             # print(x)
             return p
@@ -188,7 +217,7 @@ def fillSearch(data, p0):
                     xSum += x1
                     ySum += y1
         stack = nextStack
-    return points
+    return [p for p in points if p[1] > 5]
 
 def dispPoints(pnts):
     pnts = np.array(pnts)

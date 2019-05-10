@@ -9,13 +9,17 @@ import points as pnt
 import servoControl
 
 def main():
-    # print('Position homography calibration sheet and press enter to continue',end='')
-    # input()
-    # runHomography()
-    # print('Move car to track and press enter to configure threshold',end='')
-    # input()
-    # runThreshold()
-    calibrateSteering()
+    while True:
+        print('Choose an option to calibrate:')
+        print('h: Homography')
+        print('b: Brightness')
+        print('s: Steering')
+        print('q: Quit')
+        val = input('choice: ')
+        if val == 'h': runHomography()
+        elif val == 'b': runThreshold()
+        elif val == 's': runSteering()
+        elif val == 'q': return
 
 def takePic(path):
     camera = camSetup.init()
@@ -41,6 +45,8 @@ def takePic(path):
     camera.close()
 
 def runHomography():
+    print('Position homography calibration sheet and press enter')
+    input()
     takePic('homography.png')
     points = homography.GetPoints().run()
     H = homography.solveHomography(points, homography.REAL_POINTS)
@@ -50,6 +56,8 @@ def runHomography():
             H, H_inv))
 
 def runThreshold():
+    print('Move car to track and press enter')
+    input()
     takePic('threshold.png')
     picUtils.plotPixelHist('threshold.png')
     print('Enter new threshold: ', end='')
@@ -73,7 +81,7 @@ def runThreshold():
         with open('threshold.py', 'w') as f:
             f.write('threshold = {}'.format(threshold))
 
-def calibrateSteering():
+def runSteering():
     print('press enter to get average x: ',end='')
     input()
     avX = None
@@ -107,4 +115,4 @@ def calibrateSteering():
 
     with open('turnPoints.csv', 'a+') as f:
         f.write('{}, {}\n'.format(turn, m))
-main()
+# main()

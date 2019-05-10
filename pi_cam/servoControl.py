@@ -5,7 +5,7 @@ import math
 minR = 70.25/2
 carL = 10.25
 maxA = math.atan2(carL, minR)
-loPWM = 9.4
+loPWM = 9.0
 hiPWM = 15.0
 # mid = 12.3
 halfPWM = (hiPWM-loPWM)/2
@@ -29,8 +29,12 @@ def getTurn(c):
     ang = math.atan(carL/c)
     return ang/maxA
 
+def getSpeed(turn):
+    turn = abs(turn)
+    return 110 - 40*turn
+
 # init()
-# pwm.ChangeDutyCycle(hiPWM)
+# pwm.ChangeDutyCycle(loPWM)
 # while True: sleep(1)
 # pwm.ChangeDutyCycle(loPWM)
 # sleep(1)
