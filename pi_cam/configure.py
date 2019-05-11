@@ -115,4 +115,4 @@ def runSteering():
 
     with open('turnPoints.csv', 'a+') as f:
         f.write('{}, {}\n'.format(turn, m))
-# main()
+main()

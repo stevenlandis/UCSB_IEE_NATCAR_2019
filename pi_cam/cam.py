@@ -21,8 +21,10 @@ def main():
     # declare inside main so outputs() has access
     # to width and height
     def outputs():
-        lastSpeed = 40
+        lastSpeed = 120
         motorControl.speed(lastSpeed)
+
+        lastX = 25
 
         stream = io.BytesIO()
         i = 0
@@ -35,10 +37,8 @@ def main():
             'got line points',
             'transformed points',
             'filtered points',
-            'got approximate turn',
-            'did turn'])
-        maxY = pnt.transform((25,0))[1] - 10
-        print('max Y: {}'.format(maxY))
+            'did turn',
+            'set speed'])
         while True:
         # for i in range(40):
             yield stream
@@ -51,11 +51,11 @@ def main():
             with stream.getbuffer() as view:
                 imgArr = np.array(view)
                 imgArr = imgArr.reshape(height, width, 3)
-            timer.tick()
+            timer.tick() # get image array
 
             # convert array into rgb PIL image
             img = Image.fromarray(imgArr, 'RGB')
-            timer.tick()
+            timer.tick() # got image from array
 
             # # set threshold
             # if True or threshold == None:
@@ -69,33 +69,42 @@ def main():
             stopData = picUtils.getImgArray(greyImg)
             if picUtils.isEnd(stopData):
                 print('Is End {}'.format(i))
+                servoControl.turn(0)
+                sleep(0.2)
+                # img.save('end.png')
                 return
-            timer.tick()
+            timer.tick() # tested for end
 
             # resize image for faster path finding
             img = img.resize((50, 50), Image.ANTIALIAS)
             greyImg = picUtils.imgFilter(img, threshold)
             data = picUtils.getImgArray(greyImg)
-            timer.tick()
+            timer.tick() # filtered image
 
             # do pathfinding
-            points = picUtils.fillSearch(data, picUtils.getFirstPos(data, lastTurn))
-            timer.tick()
-            if points != None:
+            p0 = picUtils.getFirstPos(data, lastX)
+            if p0 != None:
+                lastX = int(p0[0] + int(10*lastTurn))
+                lastX = max(0, min(49, lastX))
+                # print(p0[0],lastTurn,lastX)
+                points = picUtils.fillSearch(data, p0, lastTurn)
+                timer.tick() # got line points
                 points = pnt.transformPoints(points)
-                timer.tick()
+                timer.tick() # transformed points
                 points = pnt.filterPoints(points, 4)
-                timer.tick()
-                a = picUtils.getTurn(points, maxY)
-                # convert a
-                a = 0.444326*a-0.127358
-                lastTurn = min(1, max(-1, a))
+                timer.tick() # filterd points
+                a = picUtils.getTurn(points, 100000)
+                lastTurn = a
 
             # turn to most recent turn
             servoControl.turn(lastTurn)
             timer.tick()
 
-            print(timer)
+            # set the speed to the turn
+            # motorControl.speed(servoControl.getSpeed(lastTurn));
+            timer.tick()
+
+            # print(timer)
 
             # reset the stream
             stream.seek(0)

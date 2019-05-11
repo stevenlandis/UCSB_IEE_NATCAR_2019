@@ -21,6 +21,8 @@ def init():
 
 # amount in [-1, 1]
 def turn(amount):
+    amount = 0.444326*amount-0.127358
+    amount = min(1, max(-1, amount))
     x = midPWM + halfPWM*amount
     # print(x)
     pwm.ChangeDutyCycle(x)
@@ -30,8 +32,8 @@ def getTurn(c):
     return ang/maxA
 
 def getSpeed(turn):
-    turn = abs(turn)
-    return 110 - 40*turn
+    turn = abs(turn/2)
+    return 1.5*(110 - 40*turn)
 
 # init()
 # pwm.ChangeDutyCycle(loPWM)

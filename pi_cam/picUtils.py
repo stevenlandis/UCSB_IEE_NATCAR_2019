@@ -86,7 +86,7 @@ def getApproxTurn(data):
     return (2*xSum/xCount/data.shape[1]-1, xCount)
 
 # get the lowest point
-def bottomPoints(data,a):
+def bottomPoints(data,lastX):
     halfWidth = data.shape[1]//2
 
     # scan botton
@@ -100,36 +100,32 @@ def bottomPoints(data,a):
         yield (data.shape[1]-1, data.shape[0]-1-i)
 
 # get the lowest point
-def bottomPoints2(data,a):
-    a = (a+1)/2
+def bottomPoints2(data,startX):
     width = data.shape[1]
     height = data.shape[0]
-    startWidth = math.floor(width*a)
-    startWidth = min(startWidth, width-1)
-    startWidth = max(startWidth, 0)
     halfWidth = width//2
 
     # scan bottom
-    if startWidth < halfWidth:
-        for i in range(startWidth):
-            yield (startWidth - i - 1, height-1)
-            yield (startWidth + i, height-1)
-        for i in range(width - 2*startWidth):
-            yield (2*startWidth+i, height-1)
+    if startX < halfWidth:
+        for i in range(startX):
+            yield (startX - i - 1, height-1)
+            yield (startX + i, height-1)
+        for i in range(width - 2*startX):
+            yield (2*startX+i, height-1)
     else:
-        for i in range(width - startWidth):
-            yield (startWidth - i - 1, height-1)
-            yield (startWidth + i, height-1)
-        for i in range(2*startWidth - width):
-            yield (2*startWidth - width - i - 1, height-1)
+        for i in range(width - startX):
+            yield (startX - i - 1, height-1)
+            yield (startX + i, height-1)
+        for i in range(2*startX - width):
+            yield (2*startX - width - i - 1, height-1)
     return
     # scan sides
     for i in range(height//2):
         yield (0, height-1-i)
         yield (width-1, height-1-i)
 
-def getFirstPos(data,a):
-    for p in bottomPoints(data,a):
+def getFirstPos(data,lastX):
+    for p in bottomPoints2(data,lastX):
         if data[p[1]][p[0]]:
             # print(x)
             return p
@@ -178,7 +174,7 @@ def around(x, y, w, h):
     if y+1 < h:
         yield (x, y+1)
 
-def fillSearch(data, p0):
+def fillSearch(data, p0, lastTurn):
     if p0 == None:
         return None
     points = []
@@ -191,6 +187,7 @@ def fillSearch(data, p0):
             xSum += p[0]
             ySum += p[1]
         points.append((xSum//len(stack), ySum//len(stack)))
+
         # print(stack)
         dists = []
         for i in range(len(stack)-1):
@@ -199,13 +196,21 @@ def fillSearch(data, p0):
             dx = a[0] - b[0]
             dy = a[1] - b[1]
             dist = dx*dx+dy*dy
-            if dist > 100:
+            if dist > 3*3:
                 dists.append((i, dist))
+        # print(dists)
         if len(dists) == 2:
             # print(dists)
             stack = stack[dists[0][0]+1 : dists[1][0]+1]
             # plt.imshow(data)
             # plt.show()
+        elif len(dists) == 1 and dists[0][1] > 12*12:
+            if lastTurn < 0:
+                print('left')
+                stack = stack[:dists[0][0]+1]
+            else:
+                print('right')
+                stack = stack[dists[0][0]+1:]
 
         nextStack = []
         while len(stack):
@@ -217,7 +222,14 @@ def fillSearch(data, p0):
                     xSum += x1
                     ySum += y1
         stack = nextStack
-    return [p for p in points if p[1] > 5]
+
+    # discard points after path gets too high
+    maxI = 0
+    while maxI < len(points):
+        if points[maxI][1] < 7:break
+        maxI+=1
+
+    return points[:maxI]
 
 def dispPoints(pnts):
     pnts = np.array(pnts)

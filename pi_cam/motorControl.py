@@ -17,5 +17,6 @@ ser = serial.Serial(port)
 
 # int between 0 and 255
 def speed(s):
+    s = max(0,min(255,s))
     ser.write(bytearray([round(s)]))
 
